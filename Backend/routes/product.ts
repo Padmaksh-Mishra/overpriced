@@ -225,13 +225,14 @@ router.get("/search", async (req: Request, res: Response) => {
             where: {
                 name: {
                     contains: query,
-                    mode: 'insensitive' as any, // TypeScript should recognize this if using the correct Prisma version
+                    // mode: 'insensitive',
                 },
             },
         });
 
         res.status(200).json({ products });
     } catch (error) {
+        console.error(error); // Log the error for debugging
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
