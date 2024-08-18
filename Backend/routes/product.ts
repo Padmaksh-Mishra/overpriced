@@ -32,10 +32,13 @@ router.post("/addproduct", checkAuth, async (req: Request, res: Response) => {
 router.post("/:productId/requestprice", checkAuth, async (req: Request, res: Response) => {
     const { productId } = req.params;
     const { desiredPrice } = req.body;
+
     try {
+        // Ensure the user is authenticated
         if (!req.user) {
-            return res.status(401).json({ error: "User not authenticated please sign in again" });
+            return res.status(401).json({ error: "User not authenticated, please sign in again." });
         }
+
         // Check if the product exists
         const product = await prisma.product.findUnique({
             where: { id: parseInt(productId) },
@@ -45,19 +48,45 @@ router.post("/:productId/requestprice", checkAuth, async (req: Request, res: Res
             return res.status(404).json({ error: "Product not found." });
         }
 
-        const newRequest = await prisma.productRequest.create({
-            data: {
-                desiredPrice,
-                productId: parseInt(productId),
-                userId: req.user.id, // Accessing the userId from req.user
+        // Check if the user has already requested a price for this product
+        const existingRequest = await prisma.productRequest.findUnique({
+            where: {
+                productId_userId: {
+                    productId: parseInt(productId),
+                    userId: req.user.id,
+                },
             },
         });
 
-        res.status(201).json({ message: "Request created successfully", request: newRequest });
+        let request;
+        if (existingRequest) {
+            // Update the existing request
+            request = await prisma.productRequest.update({
+                where: {
+                    id: existingRequest.id,
+                },
+                data: {
+                    desiredPrice: desiredPrice,
+                },
+            });
+        } else {
+            // Create a new request
+            request = await prisma.productRequest.create({
+                data: {
+                    desiredPrice: desiredPrice,
+                    productId: parseInt(productId),
+                    userId: req.user.id,
+                },
+            });
+        }
+
+        res.status(201).json({ message: existingRequest ? "Request updated successfully" : "Request created successfully", request });
     } catch (error) {
+        console.error(error); // Log the error for debugging
         res.status(500).json({ error: "Internal Server Error @ products.requestprice" });
     }
 });
+
 
 // Define schema for post data
 const postSchema = z.object({
@@ -225,7 +254,6 @@ router.get("/search", async (req: Request, res: Response) => {
             where: {
                 name: {
                     contains: query,
-                    // mode: 'insensitive',
                 },
             },
         });
