@@ -216,6 +216,7 @@ router.get("/:productId/fetchprices", async (req: Request, res: Response) => {
             aggregatedRequests, // Show how many people are willing to buy at different price points
         });
     } catch (error) {
+        console.log(error);
         res.status(500).json({ error: "Internal Server Error @ products.getall" });
     }
 });

@@ -1,5 +1,5 @@
-// src/Dashboard.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { Container, Row, Col, Table, Card, Form, Button } from 'react-bootstrap';
 import { Line } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
@@ -13,7 +13,6 @@ interface DashboardProps {
 }
 
 interface TableData {
-  id: number;
   name: string;
   value: number;
 }
@@ -23,57 +22,116 @@ interface PostData {
   content: string;
   likes: number;
   dislikes: number;
+  createdAt: string;
+  userName: string;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ isLoggedIn, handleLoginLogout }) => {
-  const tableData: TableData[] = [
-    { id: 1, name: 'Item 1', value: 100 },
-    { id: 2, name: 'Item 2', value: 200 },
-  ];
-
-  const initialPosts: PostData[] = [
-    { id: 1, content: 'This is the first post!', likes: 5, dislikes: 2 },
-    { id: 2, content: 'Loving the new dashboard design!', likes: 10, dislikes: 1 },
-    { id: 3, content: 'Great work team!', likes: 8, dislikes: 0 },
-  ];
-
-  const [posts, setPosts] = useState<PostData[]>(initialPosts);
+  const { productId } = useParams<{ productId: string }>();
+  const [tableData, setTableData] = useState<TableData[]>([]);
+  const [posts, setPosts] = useState<PostData[]>([]);
   const [newPost, setNewPost] = useState<string>('');
-
-  const chartData = {
-    labels: ['Price $10', 'Price $20', 'Price $30', 'Price $40', 'Price $50'],
+  const [chartData, setChartData] = useState<any>({
+    labels: [],
     datasets: [
       {
         label: 'Number of Customers',
-        data: [150, 200, 180, 220, 210],
+        data: [],
         borderColor: 'rgba(75,192,192,1)',
         backgroundColor: 'rgba(75,192,192,0.2)',
         fill: true,
         tension: 0.4,
       },
     ],
-  };
+  });
 
-  const handleAddPost = (event: React.FormEvent) => {
+  const backendBaseUrl =  'http://localhost:3000';
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const productsResponse = await fetch(`${backendBaseUrl}/api/v1/product/${productId}/fetchprices`);
+        const product = await productsResponse.json();
+
+        const tableData: TableData[] = Object.entries(product.aggregatedRequests).map(([price, count]) => ({
+          name: `${price}`,
+          value: Number(count),
+        }));
+        setTableData(tableData);
+
+        const postsResponse = await fetch(`${backendBaseUrl}/api/v1/product/${productId}/fetchposts`);
+        const postsData = await postsResponse.json();
+
+        const formattedPosts: PostData[] = postsData.posts.map((post: any) => ({
+          id: post.id,
+          content: post.textContent,
+          likes: post.likes,
+          dislikes: post.dislikes,
+          createdAt: post.createdAt,
+          userName: post.user.name,
+        }));
+
+        setPosts(formattedPosts);
+
+        // Assuming your chart data handling logic is correct, you can update it here as well
+
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    };
+
+    fetchData();
+  }, [productId]);
+
+  const handleAddPost = async (event: React.FormEvent) => {
     event.preventDefault();
     if (newPost.trim()) {
-      const newPostData: PostData = {
-        id: posts.length + 1,
-        content: newPost,
-        likes: 0,
-        dislikes: 0,
-      };
-      setPosts([newPostData, ...posts]);
-      setNewPost('');
+      try {
+        const response = await fetch(`/api/v1/product/${productId}/addpost`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ textContent: newPost }),
+        });
+
+        if (response.ok) {
+          const newPostData: PostData = await response.json();
+          setPosts([newPostData, ...posts]);
+          setNewPost('');
+        }
+      } catch (error) {
+        console.error('Error adding post:', error);
+      }
     }
   };
 
-  const handleLike = (id: number) => {
-    setPosts(posts.map(post => post.id === id ? { ...post, likes: post.likes + 1 } : post));
+  const handleLike = async (id: number) => {
+    try {
+      const response = await fetch(`/api/v1/product/${productId}/like/${id}`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        setPosts(posts.map(post => post.id === id ? { ...post, likes: post.likes + 1 } : post));
+      }
+    } catch (error) {
+      console.error('Error liking post:', error);
+    }
   };
 
-  const handleDislike = (id: number) => {
-    setPosts(posts.map(post => post.id === id ? { ...post, dislikes: post.dislikes + 1 } : post));
+  const handleDislike = async (id: number) => {
+    try {
+      const response = await fetch(`/api/v1/product/${productId}/dislike/${id}`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        setPosts(posts.map(post => post.id === id ? { ...post, dislikes: post.dislikes + 1 } : post));
+      }
+    } catch (error) {
+      console.error('Error disliking post:', error);
+    }
   };
 
   return (
@@ -88,21 +146,20 @@ const Dashboard: React.FC<DashboardProps> = ({ isLoggedIn, handleLoginLogout }) 
                   <Table striped bordered hover>
                     <thead>
                       <tr>
-                        <th>#</th>
-                        <th>Name</th>
-                        <th>Value</th>
+                        <th>Price $</th>
+                        <th>Number of People</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {tableData.map((item) => (
-                        <tr key={item.id}>
-                          <td>{item.id}</td>
+                      {tableData.map((item, index) => (
+                        <tr key={index}>
                           <td>{item.name}</td>
                           <td>{item.value}</td>
                         </tr>
                       ))}
                     </tbody>
                   </Table>
+
                 </Col>
                 <Col md={4}>
                   <Line data={chartData} options={{ responsive: true }} />
