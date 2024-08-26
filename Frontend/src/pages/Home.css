@@ -1,0 +1,41 @@
+/* Home.css */
+.search-container {
+    position: relative;
+  }
+  
+  .search-input {
+    width: 100%;
+  }
+  
+  .search-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background-color: #ffffff;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    z-index: 1000;
+    max-height: 200px;
+    overflow-y: auto;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+  
+  .search-result-item {
+    padding: 10px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  
+  .search-result-item:hover {
+    background-color: #f1f1f1;
+  }
+  
+  .no-results {
+    padding: 10px;
+    color: #888;
+  }
+  

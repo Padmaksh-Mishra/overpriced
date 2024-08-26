@@ -1,35 +1,107 @@
-// src/Home.tsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Form, FormControl, Button, Card } from 'react-bootstrap';
+import { useNavigate } from 'react-router-dom';
 import CustomNavbar from './components/Navbar';
 import Carousel from 'react-multi-carousel';
 import 'react-multi-carousel/lib/styles.css';
+import './Home.css'; // Ensure this path is correct
+
+const backendBaseUrl = 'http://localhost:3000';
 
 interface HomeProps {
   isLoggedIn: boolean;
   handleLoginLogout: () => void;
 }
 
-const Home: React.FC<HomeProps> = ({ isLoggedIn, handleLoginLogout }) => {
-  const worthItItems = [
-    { title: 'Product 1', description: 'Excellent quality at a great price.', imageUrl: 'https://via.placeholder.com/150' },
-    { title: 'Product 2', description: 'Highly recommended by cust...', imageUrl: 'https://via.placeholder.com/150' },
-    { title: 'Product 3', description: 'Great value for money.', imageUrl: 'https://via.placeholder.com/150' },
-    { title: 'Product 4', description: 'Popular choice among buyers.', imageUrl: 'https://via.placeholder.com/150' },
-  ];
+interface ProductData {
+  id: number;
+  name: string;
+  launchPrice: number;
+  topDesiredPrice?: number;
+}
 
-  const mostOverpricedItems = [
-    { title: 'Product 5', description: 'Not worth the high price.', imageUrl: 'https://via.placeholder.com/150' },
-    { title: 'Product 6', description: 'Overpriced and underwhelming.', imageUrl: 'https://via.placeholder.com/150' },
-    { title: 'Product 7', description: 'Better alternatives available.', imageUrl: 'https://via.placeholder.com/150' },
-    { title: 'Product 8', description: 'Disappointing for the cost.', imageUrl: 'https://via.placeholder.com/150' },
-  ];
+const Home: React.FC<HomeProps> = ({ isLoggedIn, handleLoginLogout }) => {
+  const [worthItItems, setWorthItItems] = useState<ProductData[]>([]);
+  const [mostOverpricedItems, setMostOverpricedItems] = useState<ProductData[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState<ProductData[]>([]);
+  const [dropdownVisible, setDropdownVisible] = useState<boolean>(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const response = await fetch(`${backendBaseUrl}/api/v1/product/all`);
+        const products = await response.json();
+        
+        const productDifferences = products.map(async (product: ProductData) => {
+          const pricesResponse = await fetch(`${backendBaseUrl}/api/v1/product/${product.id}/fetchprices`);
+          const pricesData = await pricesResponse.json();
+          
+          const topDesiredPrice = Math.max(...Object.keys(pricesData.aggregatedRequests).map(Number));
+          const difference = product.launchPrice - topDesiredPrice;
+          
+          return { ...product, topDesiredPrice, difference };
+        });
+    
+        const productDifferenceData = await Promise.all(productDifferences);
+    
+        // Sort by difference
+        productDifferenceData.sort((a, b) => b.difference - a.difference);
+    
+        // Top 5 most overpriced (highest difference)
+        const overpriced = productDifferenceData.slice(0, 3);
+    
+        // Top 5 most worth it (lowest difference)
+        const worthIt = productDifferenceData.slice(-3);
+
+        setWorthItItems(worthIt);
+        setMostOverpricedItems(overpriced);
+      } catch (error) {
+        console.error('Error fetching products:', error);
+      }
+    };
+
+    fetchProducts();
+  }, []);
+
+  const handleSearch = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+
+    if (value) {
+      try {
+        const response = await fetch(`${backendBaseUrl}/api/v1/product/search?query=${value}`);
+        const result = await response.json();
+        const products = result.products || [];
+        setSearchResults(Array.isArray(products) ? products : []);
+        setDropdownVisible(true);
+      } catch (error) {
+        console.error('Error fetching search results:', error);
+        setSearchResults([]);
+        setDropdownVisible(false);
+      }
+    } else {
+      setSearchResults([]);
+      setDropdownVisible(false);
+    }
+  };
+
+  const handleSelectProduct = (productId: number) => {
+    navigate(`product/${productId}/dashboard`);
+    setDropdownVisible(false);
+  };
+
+  const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    // Optionally handle form submission logic here
+  };
 
   const responsive = {
     desktop: {
       breakpoint: { max: 3000, min: 1024 },
       items: 4,
-      slidesToSlide: 1, // Number of slides to move on swipe
+      slidesToSlide: 1,
     },
     tablet: {
       breakpoint: { max: 1024, min: 464 },
@@ -43,13 +115,15 @@ const Home: React.FC<HomeProps> = ({ isLoggedIn, handleLoginLogout }) => {
     },
   };
 
-  const renderCarouselItems = (items: { title: string; description: string; imageUrl: string }[]) => {
-    return items.map((item, index) => (
-      <Card key={index} className="mx-2">
-        <Card.Img variant="top" src={item.imageUrl} />
+  const renderCarouselItems = (items: ProductData[]) => {
+    return items.map((item) => (
+      <Card key={item.id} className="mx-2">
+        <Card.Img variant="top" src={`https://via.placeholder.com/150?text=${item.name}`} />
         <Card.Body>
-          <Card.Title>{item.title}</Card.Title>
-          <Card.Text>{item.description}</Card.Text>
+          <Card.Title>{item.name}</Card.Title>
+          <Card.Text>
+            {`Launch Price: $${item.launchPrice} - Top Desired Price: $${item.topDesiredPrice || 'N/A'}`}
+          </Card.Text>
         </Card.Body>
       </Card>
     ));
@@ -58,16 +132,36 @@ const Home: React.FC<HomeProps> = ({ isLoggedIn, handleLoginLogout }) => {
   return (
     <>
       <CustomNavbar isLoggedIn={isLoggedIn} handleLoginLogout={handleLoginLogout} />
-      <Container className="mt-5" style={{marginBottom:"7%"}}>
+      <Container className="mt-5" style={{ marginBottom: '7%' }}>
         <Row className="justify-content-center mb-4">
-          <Col md={8}>
-            <Form>
-              <FormControl type="text" placeholder="Search" className="mr-sm-2" />
-              <Button variant="outline-primary" style={{marginLeft:"45%"}}>Search</Button>
+          <Col md={8} className="search-container">
+            <Form onSubmit={handleFormSubmit}>
+              <FormControl 
+                type="text" 
+                placeholder="Search" 
+                className="search-input"
+                value={searchTerm}
+                onChange={handleSearch}
+                onFocus={() => setDropdownVisible(true)}
+                onBlur={() => setTimeout(() => setDropdownVisible(false), 100)}
+              />
+              {dropdownVisible && searchResults.length > 0 && (
+                <ul className="search-dropdown">
+                  {searchResults.map((product) => (
+                    <li 
+                      key={product.id} 
+                      onClick={() => handleSelectProduct(product.id)}
+                      className="search-result-item"
+                    >
+                      {product.name}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </Form>
           </Col>
         </Row>
-        <Row style={{marginBottom:"5%",marginLeft:"5%"}}>
+        <Row style={{ marginBottom: '5%', marginLeft: '5%' }}>
           <Col md={11}>
             <h3>Worth it</h3>
             <Carousel responsive={responsive} infinite={true} arrows={true}>
@@ -75,7 +169,7 @@ const Home: React.FC<HomeProps> = ({ isLoggedIn, handleLoginLogout }) => {
             </Carousel>
           </Col>
         </Row>
-        <Row className="mt-4" style={{marginLeft:"5%"}}>
+        <Row className="mt-4" style={{ marginLeft: '5%' }}>
           <Col md={11}>
             <h3>Most Overpriced</h3>
             <Carousel responsive={responsive} infinite={true} arrows={true}>
