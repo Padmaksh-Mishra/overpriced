@@ -53,10 +53,14 @@ const Dashboard: React.FC<DashboardProps> = ({ isLoggedIn, handleLoginLogout }) 
       const productsResponse = await fetch(`${backendBaseUrl}/api/v1/product/${productId}/fetchprices`);
       const product = await productsResponse.json();
 
-      const tableData: TableData[] = Object.entries(product.aggregatedRequests).map(([price, count]) => ({
-        name: `${price}`,
-        value: Number(count),
-      }));
+      // Convert the aggregatedRequests object to an array and sort it by count
+      const tableData: TableData[] = Object.entries(product.aggregatedRequests)
+        .map(([price, count]) => ({
+          name: `${price}`,
+          value: Number(count),
+        }))
+        .sort((a, b) => b.value - a.value); // Sort by the value (count) in descending order
+
       setTableData(tableData);
 
       const postsResponse = await fetch(`${backendBaseUrl}/api/v1/product/${productId}/fetchposts`);
@@ -74,7 +78,32 @@ const Dashboard: React.FC<DashboardProps> = ({ isLoggedIn, handleLoginLogout }) 
       setPosts(formattedPosts);
 
       // Assuming your chart data handling logic is correct, you can update it here as well
+      // Sort the data by price for the chart
+      const sortedChartData: TableData[] = Object.entries(product.aggregatedRequests)
+        .map(([price, count]) => ({
+          name: `${price}`,
+          value: Number(count),
+        }))
+        .sort((a, b) => Number(a.name) - Number(b.name)); // Sort by price (name) in ascending order
 
+      // Extract labels (prices) and data (counts) from the sorted chart data
+      const chartLabels = sortedChartData.map(item => item.name);
+      const chartDataValues = sortedChartData.map(item => item.value);
+
+      // Update the chart data
+      setChartData({
+        labels: chartLabels,
+        datasets: [
+          {
+            label: 'Number of Customers',
+            data: chartDataValues,
+            borderColor: 'rgba(75,192,192,1)',
+            backgroundColor: 'rgba(75,192,192,0.2)',
+            fill: true,
+            tension: 0.4,
+          },
+        ],
+      });
     } catch (error) {
       console.error('Error fetching data:', error);
     }

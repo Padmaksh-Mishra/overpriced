@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Form, FormControl, Card } from 'react-bootstrap';
+import { Container, Row, Col, Form, FormControl, Card, Button } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import Carousel from 'react-multi-carousel';
 import 'react-multi-carousel/lib/styles.css';
+import { FaDollarSign } from 'react-icons/fa';
 import './Home.css'; // Ensure this path is correct
 
 const backendBaseUrl = 'http://localhost:3000';
 
-// Define the ProductData interface
 interface ProductData {
   id: number;
   name: string;
@@ -28,27 +28,29 @@ const Home: React.FC = () => {
       try {
         const response = await fetch(`${backendBaseUrl}/api/v1/product/all`);
         const products = await response.json();
-        
+
         const productDifferences = products.map(async (product: ProductData) => {
           const pricesResponse = await fetch(`${backendBaseUrl}/api/v1/product/${product.id}/fetchprices`);
           const pricesData = await pricesResponse.json();
-          
-          const topDesiredPrice = Math.max(...Object.keys(pricesData.aggregatedRequests).map(Number));
+
+          // Convert the aggregatedRequests object to an array of prices
+          const pricesArray = Object.entries(pricesData.aggregatedRequests)
+            .map(([price, _count]) => parseFloat(price)); // Convert keys to numbers
+
+          // Find the maximum price or default to 0 if pricesArray is empty
+          const topDesiredPrice = pricesArray.reduce((max, current) => (current > max ? current : max), 0);
+
           const difference = product.launchPrice - topDesiredPrice;
-          
+
           return { ...product, topDesiredPrice, difference };
         });
-    
+
         const productDifferenceData = await Promise.all(productDifferences);
-    
-        // Sort by difference
+
         productDifferenceData.sort((a, b) => b.difference - a.difference);
-    
-        // Top 5 most overpriced (highest difference)
-        const overpriced = productDifferenceData.slice(0, 5);
-    
-        // Top 5 most worth it (lowest difference)
-        const worthIt = productDifferenceData.slice(-5);
+
+        const overpriced = productDifferenceData.slice(0, 4);
+        const worthIt = productDifferenceData.slice(-4);
 
         setWorthItItems(worthIt);
         setMostOverpricedItems(overpriced);
@@ -56,6 +58,7 @@ const Home: React.FC = () => {
         console.error('Error fetching products:', error);
       }
     };
+
 
     fetchProducts();
   }, []);
@@ -89,7 +92,10 @@ const Home: React.FC = () => {
 
   const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Optionally handle form submission logic here
+  };
+
+  const handleAddProductClick = () => {
+    navigate('/addproduct'); // Replace with the actual route for adding a product
   };
 
   const responsive = {
@@ -111,17 +117,54 @@ const Home: React.FC = () => {
   };
 
   const renderCarouselItems = (items: ProductData[]) => {
-    return items.map((item) => (
-      <Card key={item.id} className="mx-2">
-        <Card.Img variant="top" src={`https://via.placeholder.com/150?text=${item.name}`} />
-        <Card.Body>
-          <Card.Title>{item.name}</Card.Title>
-          <Card.Text>
-            {`Launch Price: $${item.launchPrice} - Top Desired Price: $${item.topDesiredPrice || 'N/A'}`}
-          </Card.Text>
-        </Card.Body>
-      </Card>
-    ));
+    const navigate = useNavigate(); // Initialize navigate
+
+    const handleCardClick = (productId: number) => {
+      navigate(`/product/${productId}/dashboard`);
+    };
+
+    return items.map((item) => {
+      const topDesiredPrice = item.topDesiredPrice ?? 0;
+      const percentageDifference = ((item.launchPrice - topDesiredPrice) / item.launchPrice) * 100;
+      const isBelow20Percent = percentageDifference >= 30; // Changed to 30% based on your requirement
+      const cardBgColor = isBelow20Percent ? '#f2dede' : '#dff0d8'; // Light red or green shades
+
+      return (
+        <Card
+          key={item.id}
+          className="mx-2 my-3 shadow-sm border-light"
+          style={{ borderRadius: '10px', overflow: 'hidden', backgroundColor: cardBgColor }}
+          onClick={() => handleCardClick(item.id)}
+          role="button"
+        >
+          {/* Optionally add an image */}
+          {/* <Card.Img
+            variant="top"
+            src={`https://via.placeholder.com/150?text=${item.name}`}
+            alt={item.name}
+          /> */}
+          <Card.Body className="text-center">
+            <Card.Title className="mb-3">{item.name}</Card.Title>
+            <Card.Text>
+              <div className="d-flex flex-column align-items-center">
+                <div className="mb-2">
+                  <FaDollarSign /> <strong>Launch Price:</strong> ${item.launchPrice}
+                </div>
+                <div>
+                  <FaDollarSign /> <strong>Top Desired Price:</strong> ${topDesiredPrice}
+                </div>
+                <div
+                  className="mt-2"
+                  style={{ color: isBelow20Percent ? '#a94442' : '#3c763d' }} // Text color based on percentage
+                >
+                  {percentageDifference.toFixed(2)}% less than Launch Price
+                </div>
+              </div>
+            </Card.Text>
+          </Card.Body>
+        </Card>
+      );
+    });
   };
 
   return (
@@ -130,9 +173,9 @@ const Home: React.FC = () => {
         <Row className="justify-content-center mb-4">
           <Col md={8} className="search-container">
             <Form onSubmit={handleFormSubmit}>
-              <FormControl 
-                type="text" 
-                placeholder="Search" 
+              <FormControl
+                type="text"
+                placeholder="Search"
                 className="search-input"
                 value={searchTerm}
                 onChange={handleSearch}
@@ -142,8 +185,8 @@ const Home: React.FC = () => {
               {dropdownVisible && searchResults.length > 0 && (
                 <ul className="search-dropdown">
                   {searchResults.map((product) => (
-                    <li 
-                      key={product.id} 
+                    <li
+                      key={product.id}
                       onClick={() => handleSelectProduct(product.id)}
                       className="search-result-item"
                     >
@@ -153,6 +196,13 @@ const Home: React.FC = () => {
                 </ul>
               )}
             </Form>
+          </Col>
+        </Row>
+        <Row className="justify-content-center mb-4">
+          <Col md={8} className="text-center">
+            <Button variant="primary" onClick={handleAddProductClick}>
+              Add Product
+            </Button>
           </Col>
         </Row>
         <Row style={{ marginBottom: '5%', marginLeft: '5%' }}>

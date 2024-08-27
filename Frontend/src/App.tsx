@@ -5,6 +5,8 @@ import SignIn from './pages/signin';
 import Home from './pages/Home';
 import Dashboard from './pages/Dashboard';
 import CustomNavbar from './pages/components/Navbar';
+import AddProduct from './pages/AddProduct';
+
 
 const App: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
@@ -24,6 +26,7 @@ const App: React.FC = () => {
           path="/product/:productId/dashboard"
           element={<Dashboard isLoggedIn={isLoggedIn} handleLoginLogout={handleLoginLogout} />}
         />
+         <Route path="/addproduct" element={<AddProduct />} /> 
       </Routes>
     </Router>
   );
