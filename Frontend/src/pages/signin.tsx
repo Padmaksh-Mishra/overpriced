@@ -28,7 +28,9 @@ const SignIn: React.FC<SignInProps> = ({ onLogin }) => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to sign in');
+        // Parse the response to get the error message
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'An error occurred');
       }
 
       const data = await response.json();
@@ -82,6 +84,12 @@ const SignIn: React.FC<SignInProps> = ({ onLogin }) => {
               Sign In
             </Button>
           </Form>
+
+          <div className="mt-4">
+            <p>
+              Not registered? <a href="/signup">Sign up here</a>.
+            </p>
+          </div>
         </Col>
       </Row>
     </Container>
