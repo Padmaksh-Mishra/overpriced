@@ -33,12 +33,15 @@ const Home: React.FC = () => {
           const pricesResponse = await fetch(`${backendBaseUrl}/api/v1/product/${product.id}/fetchprices`);
           const pricesData = await pricesResponse.json();
 
-          // Convert the aggregatedRequests object to an array of prices
+          // Convert the aggregatedRequests object to an array of [price, count] pairs
           const pricesArray = Object.entries(pricesData.aggregatedRequests)
-            .map(([price, _count]) => parseFloat(price)); // Convert keys to numbers
+            .map(([price, count]) => ({ price: parseFloat(price), count: count as number })); // Explicitly cast count to number
 
-          // Find the maximum price or default to 0 if pricesArray is empty
-          const topDesiredPrice = pricesArray.reduce((max, current) => (current > max ? current : max), 0);
+          // Find the price with the highest count
+          const topDesiredPriceObj = pricesArray.reduce((max, current) =>
+            (current.count > max.count ? current : max), { price: 0, count: 0 });
+
+          const topDesiredPrice = topDesiredPriceObj.price;
 
           const difference = product.launchPrice - topDesiredPrice;
 
@@ -58,6 +61,7 @@ const Home: React.FC = () => {
         console.error('Error fetching products:', error);
       }
     };
+
 
 
     fetchProducts();
