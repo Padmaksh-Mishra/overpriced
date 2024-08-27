@@ -8,7 +8,7 @@ const router = express.Router();
 
 // POST route to create a new product
 router.post("/addproduct", checkAuth, async (req: Request, res: Response) => {
-    const { name } = req.body;
+    const { name,launchPrice } = req.body;
 
     if (!name) {
         return res.status(400).json({ error: "Product name is required" });
@@ -18,11 +18,13 @@ router.post("/addproduct", checkAuth, async (req: Request, res: Response) => {
         const newProduct = await prisma.product.create({
             data: {
                 name,
+                launchPrice
             },
         });
 
         res.status(201).json({ message: "Product created successfully", product: newProduct });
     } catch (error) {
+        console.log(error)
         res.status(500).json({ error: "Internal Server Error @ product.addproduct" });
     }
 });
@@ -216,6 +218,7 @@ router.get("/:productId/fetchprices", async (req: Request, res: Response) => {
             aggregatedRequests, // Show how many people are willing to buy at different price points
         });
     } catch (error) {
+        console.log(error);
         res.status(500).json({ error: "Internal Server Error @ products.getall" });
     }
 });
@@ -265,5 +268,20 @@ router.get("/search", async (req: Request, res: Response) => {
     }
 });
 
-
+// Route to fetch all products
+router.get('/all', async (req, res) => {
+    try {
+      const products = await prisma.product.findMany({
+        include: {
+          requests: true, // Include related requests if needed
+          posts: true,    // Include related posts if needed
+        },
+      });
+      res.json(products);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      res.status(500).json({ error: 'Failed to fetch products' });
+    }
+  });
+  
 export default router;

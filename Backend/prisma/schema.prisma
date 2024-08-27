@@ -10,14 +10,15 @@ generator client {
 }
 
 model Product {
-  id       Int              @id @default(autoincrement())
-  name     String
-  requests ProductRequest[] // Relationship to ProductRequest
-  posts    Post[] // Relationship to Post
+  id          Int              @id @default(autoincrement())
+  name        String
+  launchPrice Int
+  requests    ProductRequest[] // Relationship to ProductRequest
+  posts       Post[] // Relationship to Post
 }
 
 model ProductRequest {
-  id           Int   @id @default(autoincrement())
+  id           Int @id @default(autoincrement())
   productId    Int
   userId       Int
   desiredPrice Int
@@ -29,12 +30,12 @@ model ProductRequest {
 }
 
 model Post {
-  id          Int    @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   productId   Int
   userId      Int
   textContent String
-  likes       Int    @default(0)
-  dislikes    Int    @default(0)
+  likes       Int      @default(0)
+  dislikes    Int      @default(0)
   createdAt   DateTime @default(now())
 
   product Product @relation(fields: [productId], references: [id])
@@ -42,10 +43,10 @@ model Post {
 }
 
 model User {
-  id        Int              @id @default(autoincrement())
-  email     String           @unique
-  name      String?
-  password  String
-  posts     Post[]           // Relationship to Post
-  requests  ProductRequest[] // Relationship to ProductRequest
+  id       Int              @id @default(autoincrement())
+  email    String           @unique
+  name     String?
+  password String
+  posts    Post[] // Relationship to Post
+  requests ProductRequest[] // Relationship to ProductRequest
 }
