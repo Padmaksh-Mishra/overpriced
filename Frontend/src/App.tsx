@@ -1,13 +1,13 @@
-// src/App.tsx
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-// import SignUp from './pages/signup';
-// import SignIn from './pages/singin';
+import SignUp from './pages/signup';
+import SignIn from './pages/signin';
 import Home from './pages/Home';
 import Dashboard from './pages/Dashboard';
+import CustomNavbar from './pages/components/Navbar';
 
 const App: React.FC = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(true);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
 
   const handleLoginLogout = () => {
     setIsLoggedIn(!isLoggedIn);
@@ -15,35 +15,14 @@ const App: React.FC = () => {
 
   return (
     <Router>
+      <CustomNavbar isLoggedIn={isLoggedIn} handleLoginLogout={handleLoginLogout} />
       <Routes>
-        {/* Home Route */}
-        <Route
-          path="/home"
-          element={<Home isLoggedIn={isLoggedIn} handleLoginLogout={handleLoginLogout} />}
-        />
-
-        {/* Sign Up Route */}
-        <Route
-        // path="/signup"
-        // element={<SignUp isLoggedIn={isLoggedIn} handleLoginLogout={handleLoginLogout} />}
-        />
-
-        {/* Sign In Route */}
-        <Route
-        // path="/signin"
-        // element={<SignIn isLoggedIn={isLoggedIn} handleLoginLogout={handleLoginLogout} />}
-        />
-
-        {/* Product-Specific Dashboard Route */}
+        <Route path="/" element={<Home />} />
+        <Route path="/signup" element={<SignUp />} />
+        <Route path="/signin" element={<SignIn onLogin={() => setIsLoggedIn(true)} />} />
         <Route
           path="/product/:productId/dashboard"
           element={<Dashboard isLoggedIn={isLoggedIn} handleLoginLogout={handleLoginLogout} />}
-        />
-
-        {/* Default Route (Redirect to Home or another component) */}
-        <Route
-          path="/"
-          element={<Home isLoggedIn={isLoggedIn} handleLoginLogout={handleLoginLogout} />}
         />
       </Routes>
     </Router>

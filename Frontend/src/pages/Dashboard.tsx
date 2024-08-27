@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { Container, Row, Col, Table, Card, Form, Button } from 'react-bootstrap';
 import { Line } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
-import CustomNavbar from './components/Navbar';
+import { FaThumbsUp, FaThumbsDown } from 'react-icons/fa';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
@@ -31,6 +31,7 @@ const Dashboard: React.FC<DashboardProps> = ({ isLoggedIn, handleLoginLogout }) 
   const [tableData, setTableData] = useState<TableData[]>([]);
   const [posts, setPosts] = useState<PostData[]>([]);
   const [newPost, setNewPost] = useState<string>('');
+  const [requestedPrice, setRequestedPrice] = useState<number | ''>('');
   const [chartData, setChartData] = useState<any>({
     labels: [],
     datasets: [
@@ -45,41 +46,41 @@ const Dashboard: React.FC<DashboardProps> = ({ isLoggedIn, handleLoginLogout }) 
     ],
   });
 
-  const backendBaseUrl =  'http://localhost:3000';
+  const backendBaseUrl = 'http://localhost:3000';
+
+  const fetchData = async () => {
+    try {
+      const productsResponse = await fetch(`${backendBaseUrl}/api/v1/product/${productId}/fetchprices`);
+      const product = await productsResponse.json();
+
+      const tableData: TableData[] = Object.entries(product.aggregatedRequests).map(([price, count]) => ({
+        name: `${price}`,
+        value: Number(count),
+      }));
+      setTableData(tableData);
+
+      const postsResponse = await fetch(`${backendBaseUrl}/api/v1/product/${productId}/fetchposts`);
+      const postsData = await postsResponse.json();
+
+      const formattedPosts: PostData[] = postsData.posts.map((post: any) => ({
+        id: post.id,
+        content: post.textContent,
+        likes: post.likes,
+        dislikes: post.dislikes,
+        createdAt: post.createdAt,
+        userName: post.user.name,
+      }));
+
+      setPosts(formattedPosts);
+
+      // Assuming your chart data handling logic is correct, you can update it here as well
+
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    }
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const productsResponse = await fetch(`${backendBaseUrl}/api/v1/product/${productId}/fetchprices`);
-        const product = await productsResponse.json();
-
-        const tableData: TableData[] = Object.entries(product.aggregatedRequests).map(([price, count]) => ({
-          name: `${price}`,
-          value: Number(count),
-        }));
-        setTableData(tableData);
-
-        const postsResponse = await fetch(`${backendBaseUrl}/api/v1/product/${productId}/fetchposts`);
-        const postsData = await postsResponse.json();
-
-        const formattedPosts: PostData[] = postsData.posts.map((post: any) => ({
-          id: post.id,
-          content: post.textContent,
-          likes: post.likes,
-          dislikes: post.dislikes,
-          createdAt: post.createdAt,
-          userName: post.user.name,
-        }));
-
-        setPosts(formattedPosts);
-
-        // Assuming your chart data handling logic is correct, you can update it here as well
-
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      }
-    };
-
     fetchData();
   }, [productId]);
 
@@ -87,18 +88,18 @@ const Dashboard: React.FC<DashboardProps> = ({ isLoggedIn, handleLoginLogout }) 
     event.preventDefault();
     if (newPost.trim()) {
       try {
-        const response = await fetch(`/api/v1/product/${productId}/addpost`, {
+        const response = await fetch(`${backendBaseUrl}/api/v1/product/${productId}/addpost`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`, // Assuming you're using token for auth
           },
           body: JSON.stringify({ textContent: newPost }),
         });
 
         if (response.ok) {
-          const newPostData: PostData = await response.json();
-          setPosts([newPostData, ...posts]);
           setNewPost('');
+          fetchData(); // Refresh data
         }
       } catch (error) {
         console.error('Error adding post:', error);
@@ -108,12 +109,15 @@ const Dashboard: React.FC<DashboardProps> = ({ isLoggedIn, handleLoginLogout }) 
 
   const handleLike = async (id: number) => {
     try {
-      const response = await fetch(`/api/v1/product/${productId}/like/${id}`, {
+      const response = await fetch(`${backendBaseUrl}/api/v1/product/${id}/like`, {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`, // Assuming you're using token for auth
+        },
       });
 
       if (response.ok) {
-        setPosts(posts.map(post => post.id === id ? { ...post, likes: post.likes + 1 } : post));
+        fetchData(); // Refresh data
       }
     } catch (error) {
       console.error('Error liking post:', error);
@@ -122,21 +126,46 @@ const Dashboard: React.FC<DashboardProps> = ({ isLoggedIn, handleLoginLogout }) 
 
   const handleDislike = async (id: number) => {
     try {
-      const response = await fetch(`/api/v1/product/${productId}/dislike/${id}`, {
+      const response = await fetch(`${backendBaseUrl}/api/v1/product/${id}/dislike`, {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`, // Assuming you're using token for auth
+        },
       });
 
       if (response.ok) {
-        setPosts(posts.map(post => post.id === id ? { ...post, dislikes: post.dislikes + 1 } : post));
+        fetchData(); // Refresh data
       }
     } catch (error) {
       console.error('Error disliking post:', error);
     }
   };
 
+  const handleRequestPrice = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (requestedPrice !== '' && requestedPrice > 0) {
+      try {
+        const response = await fetch(`${backendBaseUrl}/api/v1/product/${productId}/requestprice`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`, // Assuming you're using token for auth
+          },
+          body: JSON.stringify({ desiredPrice: requestedPrice }),
+        });
+
+        if (response.ok) {
+          setRequestedPrice('');
+          fetchData(); // Refresh data
+        }
+      } catch (error) {
+        console.error('Error requesting price:', error);
+      }
+    }
+  };
+
   return (
     <>
-      <CustomNavbar isLoggedIn={isLoggedIn} handleLoginLogout={handleLoginLogout} />
       <Container className="mt-5">
         <Row>
           <Col>
@@ -159,7 +188,6 @@ const Dashboard: React.FC<DashboardProps> = ({ isLoggedIn, handleLoginLogout }) 
                       ))}
                     </tbody>
                   </Table>
-
                 </Col>
                 <Col md={4}>
                   <Line data={chartData} options={{ responsive: true }} />
@@ -173,41 +201,80 @@ const Dashboard: React.FC<DashboardProps> = ({ isLoggedIn, handleLoginLogout }) 
             <Card>
               <Card.Header>Comments / Posts</Card.Header>
               <Card.Body>
-                <Form onSubmit={handleAddPost}>
-                  <Form.Group controlId="postText">
-                    <Form.Control
-                      as="textarea"
-                      rows={3}
-                      placeholder="Add a post..."
-                      value={newPost}
-                      onChange={(e) => setNewPost(e.target.value)}
-                    />
-                  </Form.Group>
-                  <Button variant="primary" type="submit">
-                    Post
-                  </Button>
-                </Form>
+                {isLoggedIn ? (
+                  <Form onSubmit={handleAddPost}>
+                    <Form.Group controlId="postText">
+                      <Form.Control
+                        as="textarea"
+                        rows={3}
+                        placeholder="Add a post..."
+                        value={newPost}
+                        onChange={(e) => setNewPost(e.target.value)}
+                      />
+                    </Form.Group>
+                    <Button variant="primary" type="submit" className="mt-2">
+                      Post
+                    </Button>
+                  </Form>
+                ) : (
+                  <p>Please sign in to add a post.</p>
+                )}
               </Card.Body>
             </Card>
             <div className="mt-3">
               {posts.map((post) => (
                 <Card key={post.id} className="mb-2">
                   <Card.Body>
+                    <Row>
+                      <Col xs={6}>
+                        <Card.Text><strong>{post.userName}</strong></Card.Text>
+                      </Col>
+                      <Col xs={6} className="text-end">
+                        <Card.Text>{new Date(post.createdAt).toLocaleDateString()}</Card.Text>
+                      </Col>
+                    </Row>
                     <Card.Text>{post.content}</Card.Text>
-                    <Button variant="success" size="sm" onClick={() => handleLike(post.id)}>
-                      Like ({post.likes})
-                    </Button>
-                    <Button variant="danger" size="sm" onClick={() => handleDislike(post.id)} className="ml-2">
-                      Dislike ({post.dislikes})
-                    </Button>
+                    <div className="d-flex justify-content-end">
+                      <Button variant="success" size="sm" onClick={() => handleLike(post.id)} className="me-2">
+                        <FaThumbsUp /> {post.likes}
+                      </Button>
+                      <Button variant="danger" size="sm" onClick={() => handleDislike(post.id)}>
+                        <FaThumbsDown /> {post.dislikes}
+                      </Button>
+                    </div>
                   </Card.Body>
                 </Card>
               ))}
             </div>
           </Col>
         </Row>
+        {isLoggedIn && (
+          <Row className="mt-5">
+            <Col md={12}>
+              <Card>
+                <Card.Header>Request a Price</Card.Header>
+                <Card.Body>
+                  <Form onSubmit={handleRequestPrice}>
+                    <Form.Group controlId="requestedPrice">
+                      <Form.Control
+                        type="number"
+                        placeholder="Enter desired price"
+                        value={requestedPrice}
+                        onChange={(e) => setRequestedPrice(Number(e.target.value))}
+                      />
+                    </Form.Group>
+                    <Button variant="primary" type="submit" className="mt-2">
+                      Request Price
+                    </Button>
+                  </Form>
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
+        )}
       </Container>
     </>
+
   );
 };
 

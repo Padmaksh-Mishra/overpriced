@@ -1,18 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Form, FormControl, Button, Card } from 'react-bootstrap';
+import { Container, Row, Col, Form, FormControl, Card } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import CustomNavbar from './components/Navbar';
 import Carousel from 'react-multi-carousel';
 import 'react-multi-carousel/lib/styles.css';
 import './Home.css'; // Ensure this path is correct
 
 const backendBaseUrl = 'http://localhost:3000';
 
-interface HomeProps {
-  isLoggedIn: boolean;
-  handleLoginLogout: () => void;
-}
-
+// Define the ProductData interface
 interface ProductData {
   id: number;
   name: string;
@@ -20,7 +15,7 @@ interface ProductData {
   topDesiredPrice?: number;
 }
 
-const Home: React.FC<HomeProps> = ({ isLoggedIn, handleLoginLogout }) => {
+const Home: React.FC = () => {
   const [worthItItems, setWorthItItems] = useState<ProductData[]>([]);
   const [mostOverpricedItems, setMostOverpricedItems] = useState<ProductData[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -50,10 +45,10 @@ const Home: React.FC<HomeProps> = ({ isLoggedIn, handleLoginLogout }) => {
         productDifferenceData.sort((a, b) => b.difference - a.difference);
     
         // Top 5 most overpriced (highest difference)
-        const overpriced = productDifferenceData.slice(0, 3);
+        const overpriced = productDifferenceData.slice(0, 5);
     
         // Top 5 most worth it (lowest difference)
-        const worthIt = productDifferenceData.slice(-3);
+        const worthIt = productDifferenceData.slice(-5);
 
         setWorthItItems(worthIt);
         setMostOverpricedItems(overpriced);
@@ -131,7 +126,6 @@ const Home: React.FC<HomeProps> = ({ isLoggedIn, handleLoginLogout }) => {
 
   return (
     <>
-      <CustomNavbar isLoggedIn={isLoggedIn} handleLoginLogout={handleLoginLogout} />
       <Container className="mt-5" style={{ marginBottom: '7%' }}>
         <Row className="justify-content-center mb-4">
           <Col md={8} className="search-container">
